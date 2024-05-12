@@ -123,11 +123,13 @@ class Encoder:
             self.warnFloatDepreciation(params['sw_debounce_time'])
 
     def _switch_press(self):
+        print("PRESS")
         self.latest_switch_press = time()
         self.long_press_timer = Timer(self.long_press_time, self._long_press_callback)
         self.long_press_timer.start()
 
     def _switch_release(self):
+        print("RELEASE")
         if self.long_press_timer and self.long_press_timer.is_alive():
             self.long_press_timer.cancel()
         else:
