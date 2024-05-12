@@ -1,29 +1,17 @@
-![tests](https://github.com/raphaelyancey/pyKY040/workflows/tests/badge.svg)
-
-# pyKY040
+# FORK OF pyKY040
 
 **High-level Python module for the KY040 rotary encoder and switch** on Raspberry Pi and similar boards that use `RPi.GPIO`
 
 <img src="https://i.imgur.com/vgHjSoY.jpg" width="300" alt="KY-040 rotary encoder and switch">
 
-## Features
+## New Features
 
-- Increment callback
-- Decrement callback
-- Change callback (increment or decrement)
-- Switch press callback
-
-### Options
-
-- Scale mode (internal counter is bound between X and Y, and is given as argument in the callback functions)
-- Looped scale mode (from X to Y, then X again)
-- Custom scale step
-- GPIO polling (easier) or [as a device](#device-or-gpio-polling) (sturdier)
+- Long Press Callback
 
 ## Installation
 
 ```bash
-pip install pyky040
+pip install git+https://github.com/azazelcodes/pyky040.git
 ```
 
 <!--
@@ -36,14 +24,44 @@ pip install pyky040
 
 ```python
 # Import the module
-from pyky040 import pyky040
+import pyky040
 
 # Define your callback
 def my_callback(scale_position):
     print('Hello world! The scale position is {}'.format(scale_position))
 
 # Init the encoder pins
-my_encoder = pyky040.Encoder(CLK=17, DT=18, SW=26)
+my_encoder = pyky040.Encoder(CLK=17, DT=18, SW=27)
+
+# Or the encoder as a device (must be installed on the system beforehand!)
+# my_encoder = pyky040.Encoder(device='/dev/input/event0')
+
+# Setup the options and callbacks (see documentation)
+my_encoder.setup(scale_min=0, scale_max=100, step=1, chg_callback=my_callback)
+
+# Launch the listener
+my_encoder.watch()
+
+# Mess with the encoder...
+# > Hello world! The scale position is 1
+# > Hello world! The scale position is 2
+# > Hello world! The scale position is 3
+# > Hello world! The scale position is 2
+# > Hello world! The scale position is 1
+```
+
+### Long Press
+
+```python
+# Import the module
+import pyky040
+
+# Define your callback
+def my_callback():
+    print('Long Press! (Over 2000ms)')
+
+# Init the encoder pins
+my_encoder = pyky040.Encoder(CLK=17, DT=18, SW=27)
 
 # Or the encoder as a device (must be installed on the system beforehand!)
 # my_encoder = pyky040.Encoder(device='/dev/input/event0')
@@ -68,15 +86,16 @@ As the `watch()` method runs an infinite polling loop, you might want to run it 
 
 ```python
 # Import the module and threading
-from pyky040 import pyky040
+import pyky040
 import threading
+from time import sleep
 
 # Define your callback
 def my_callback(scale_position):
     print('Hello world! The scale position is {}'.format(scale_position))
 
 # Init the encoder pins
-my_encoder = pyky040.Encoder(CLK=17, DT=18, SW=26)
+my_encoder = pyky040.Encoder(CLK=17, DT=18, SW=27)
 
 # Or the encoder as a device (must be installed on the system beforehand!)
 # my_encoder = pyky040.Encoder(device='/dev/input/event0')
@@ -120,6 +139,8 @@ Initializes the module with the specified encoder pins.
   - `polling_interval` Specify the pins polling interval in ms (default 1ms)
 
 #### `Encoder(device='...')`
+
+#### THIS DOES NOT WORK!!
 
 ⚠️ Linux only
 
@@ -180,6 +201,7 @@ It is known that some pins combinations introduce erratic behavior (interference
 |CLK| DT| SW|       Pi|Raspbian|
 |---|---|---|---------|--------|
 | 26|  4| 21| 3B (1.2)|Buster  |
+| 27|  4| 21| Zero    |Lite    |
 
 Feel free to edit the README to provide your working combinations!
 
@@ -187,17 +209,5 @@ If you are still experiencing issues, you might want to try to [set up the encod
 
 ## CHANGELOG
 
-**0.1.4**
-
-  - Added `device` mode
-  - Added tests
- 
-**0.1.3**
-
-  - Fixed `latest_switch_call` not defined before the loop
-
-**0.1.2**
-
-  - Changed `__init_` args to kwargs for better readability and ease of use `Encoder(CLK=x, DT=y, SW=z)`
-  - Added customizable debounce time (in ms) for the switch `setup(..., sw_debounce_time=300)`
-  - Added customizable polling interval (in ms) `Encoder(..., polling_interval=1)`
+**0.1.5** (fork **0.0.1**)
+Added Long Press
