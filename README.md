@@ -50,7 +50,7 @@ my_encoder.watch()
 # > Hello world! The scale position is 1
 ```
 
-### Long Press
+### Long Press (REMOVED RN)
 
 ```python
 # Import the module
