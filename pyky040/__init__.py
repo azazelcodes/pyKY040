@@ -27,6 +27,7 @@ class Encoder:
     clk_last_state = None
     sw_triggered = False     # Used to debounce a long switch click (prevent multiple callback calls)
     latest_switch_press = None
+    long_press_timer = None
 
     device = None            # Device path (when used instead of GPIO polling)
 
@@ -42,7 +43,7 @@ class Encoder:
     sw_callback = None       # Switch pressed callback
     long_press_callback = None  # Long press callback
 
-    long_press_time = 2000   # Time in milliseconds to consider a press as a long press
+    long_press_time = 2.0   # Time in seconds to consider a press as a long press
 
     def __init__(self, CLK=None, DT=None, SW=None, polling_interval=1, device=None):
 
@@ -122,21 +123,24 @@ class Encoder:
             self.warnFloatDepreciation(params['sw_debounce_time'])
 
     def _switch_press(self):
-        now = time() * 1000
-        if not self.sw_triggered:
-            if self.latest_switch_press is not None:
-                # Only callback if not in the debounce delta
-                if now - self.latest_switch_press > self.sw_debounce_time:
-                    self.sw_callback()
-                    if now - self.latest_switch_press > self.long_press_time:
-                        self.long_press_callback()  # Callback for long press
-            else:  # Or if first press since script started
-                self.sw_callback()
-        self.sw_triggered = True
-        self.latest_switch_press = now
+        self.latest_switch_press = time()
+        self.long_press_timer = Timer(self.long_press_time, self._long_press_callback)
+        self.long_press_timer.start()
 
     def _switch_release(self):
-        self.sw_triggered = False
+        if self.long_press_timer and self.long_press_timer.is_alive():
+            self.long_press_timer.cancel()
+        else:
+            if self.latest_switch_press:
+                now = time()
+                press_duration = now - self.latest_switch_press
+                if press_duration >= self.sw_debounce_time / 1000:  # Only consider as pressed if duration is above debounce time
+                    self.sw_callback()
+        self.latest_switch_press = None
+
+    def _long_press_callback(self):
+        self.long_press_callback()
+        self.latest_switch_press = None
 
     def _clockwise_tick(self):
 
