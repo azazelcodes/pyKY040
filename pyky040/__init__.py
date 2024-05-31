@@ -14,9 +14,7 @@ try:
 except Exception:
     logging.info("The `evdev` package wasn't found, install it if you need to use the `device` mode.")
 
-
 class Encoder:
-
     clk = None               # Board pin connected to the encoder CLK pin
     dt = None                # Same for the DT pin
     sw = None                # And for the switch pin
@@ -30,11 +28,8 @@ class Encoder:
 
     device = None            # Device path (when used instead of GPIO polling)
 
-    step = 1                 # Scale step from min to max
-    max_counter = 100        # Scale max
-    min_counter = 0          # Scale min
+    step = 1                 # Scale step
     counter = 0              # Initial scale position
-    counter_loop = False     # If True, when at MAX, loop to MIN (-> 0, ..., MAX, MIN, ..., ->)
 
     inc_callback = None      # Clockwise rotation callback (increment)
     dec_callback = None      # Anti-clockwise rotation callback (decrement)
@@ -44,15 +39,12 @@ class Encoder:
     def __init__(self, CLK=None, DT=None, SW=None, polling_interval=1, device=None):
 
         if device is not None:
-
             try:
                 self.device = evdev.InputDevice(device)
                 logger.info("Please note that the encoder switch functionnality isn't handled in `device` mode yet.")
             except OSError:
                 raise BaseException("The rotary encoder needs to be installed before use: https://github.com/raphaelyancey/pyky040#install-device")
-
         else:
-
             if not CLK or not DT:
                 raise BaseException("You must specify at least the CLK & DT pins")
 
@@ -74,26 +66,9 @@ class Encoder:
 
     def warnFloatDepreciation(self, i):
         if isinstance(i, float):
-            warnings.warn('Float numbers as `scale_min`, `scale_max`, `sw_debounce_time` or `step` will be deprecated in the next major release. Use integers instead.', DeprecationWarning)
+            warnings.warn('Float numbers as `sw_debounce_time` or `step` will be deprecated in the next major release. Use integers instead.', DeprecationWarning)
 
     def setup(self, **params):
-
-        # Note: boundaries are inclusive : [min_c, max_c]
-
-        if 'loop' in params and params['loop'] is True:
-            self.counter_loop = True
-        else:
-            self.counter_loop = False
-
-        if 'scale_min' in params:
-            assert isinstance(params['scale_min'], int) or isinstance(params['scale_min'], float)
-            self.min_counter = params['scale_min']
-            self.counter = self.min_counter
-            self.warnFloatDepreciation(params['scale_min'])
-        if 'scale_max' in params:
-            assert isinstance(params['scale_max'], int) or isinstance(params['scale_max'], float)
-            self.max_counter = params['scale_max']
-            self.warnFloatDepreciation(params['scale_max'])
         if 'step' in params:
             assert isinstance(params['step'], int) or isinstance(params['step'], float)
             self.step = params['step']
@@ -119,10 +94,9 @@ class Encoder:
         now = time() * 1000
         if not self.sw_triggered:
             if self.latest_switch_press is not None:
-                # Only callback if not in the debounce delta
                 if now - self.latest_switch_press > self.sw_debounce_time:
                     self.sw_callback()
-            else:  # Or if first press since script started
+            else:
                 self.sw_callback()
         self.sw_triggered = True
         self.latest_switch_press = now
@@ -131,12 +105,7 @@ class Encoder:
         self.sw_triggered = False
 
     def _clockwise_tick(self):
-
-        if self.counter + self.step <= self.max_counter:
-            self.counter += self.step
-        elif self.counter + self.step > self.max_counter:
-            # If loop, go back to min once max is reached. Else, just set it to max.
-            self.counter = self.min_counter if self.counter_loop is True else self.max_counter
+        self.counter += self.step
 
         if self.inc_callback is not None:
             self.inc_callback(self.counter)
@@ -144,20 +113,14 @@ class Encoder:
             self.chg_callback(self.counter)
 
     def _counterclockwise_tick(self):
+        self.counter -= self.step
 
-        if self.counter - self.step >= self.min_counter:
-            self.counter -= self.step
-        elif self.counter - self.step < self.min_counter:
-            # If loop, go back to min once max is reached. Else, just set it to max.
-            self.counter = self.max_counter if self.counter_loop is True else self.min_counter
-
-        if self.inc_callback is not None:
+        if self.dec_callback is not None:
             self.dec_callback(self.counter)
         if self.chg_callback is not None:
             self.chg_callback(self.counter)
 
     def watch(self):
-
         if self.device is not None:
             for event in self.device.read_loop():
                 if event.type == 2:
@@ -166,17 +129,14 @@ class Encoder:
                     elif event.value == -1:
                         self._counterclockwise_tick()
         else:
-
             while True:
                 try:
-                    # Switch part
                     if self.sw_callback:
                         if GPIO.input(self.sw) == GPIO.LOW:
                             self._switch_press()
                         else:
                             self._switch_release()
 
-                    # Encoder part
                     clkState = GPIO.input(self.clk)
                     dtState = GPIO.input(self.dt)
 
